@@ -1,4 +1,4 @@
-from ast import If
+
 import cv2
 from util.model import RapidOcr,AnchorModel,RapidOcrGPU
 import cv2
@@ -207,7 +207,8 @@ def getOcrTxts(res,use_cuda):
     else:
         if len(res.elapse_list) == 0:
             return []
-        txts = getOcrTxts(res)
+        # 提取所有识别的文字（类别标签）
+        txts = res.txts
         return txts
 
 def getOcrBoxs(res,use_cuda):

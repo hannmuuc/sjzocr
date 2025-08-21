@@ -4,13 +4,19 @@ import cv2
 from PIL import Image, ImageDraw, ImageFont
 from rapidocr import EngineType, ModelType, OCRVersion, RapidOCR
 import mss
-import win32gui
-import win32con
-import win32ui
-from ctypes import windll
 from PIL import Image
 import numpy as np
 
+
+import sys
+
+# 检查是否为Windows系统
+if sys.platform.startswith('win'):
+    import win32gui
+    import win32con
+    import win32ui
+else:
+    win32gui = win32con = win32ui = None
 
 class SearchModel:
     def __init__(self,ocr_model) -> None:
