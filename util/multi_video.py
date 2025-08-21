@@ -1,14 +1,11 @@
 
 
-from itertools import count
 import multiprocessing
 import cv2
-import numpy as np
 from queue import Empty
 import time
 from util.model import RapidOcr,AnchorModel,RapidOcrGPU
 from util.video import doOcr,saveImg,readResult
-from ast import If
 import cv2
 from util.model import RapidOcr,AnchorModel,RapidOcrGPU
 import cv2

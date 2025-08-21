@@ -8,6 +8,9 @@ import numpy as np
 import cv2
 import queue
 import threading
+import os
+from datetime import datetime, timedelta
+import logging
 
 class checkStatusModel():
     def __init__(self,use_cuda):
@@ -188,10 +191,10 @@ class checkStatusModel():
 
 
 class videoSolver():
-    def __init__(self):
+    def __init__(self,use_cuda=True):
         self.name = "videoSolver"
         self.image_queue = queue.Queue(maxsize=100)
-        self.checkStatusModel = checkStatusModel(use_cuda=True)
+        self.checkStatusModel = checkStatusModel(use_cuda=use_cuda)
 
 
     def process_images(self,statusModel):
@@ -278,4 +281,111 @@ class videoSolver():
             print("所有图片处理完成，程序退出")
 
 
+class context():
+    def __init__(self,total_frames):
+        self.frame_count = 0
+        self.start_time = time.time()
+        self.frame_times = []
+        self.begin_frame = 0
+        self.total_frames = total_frames
+        self.remaining_frames = self.total_frames - self.begin_frame
+        self.prior_metrics_time = time.time()
 
+    def prior(self):
+        self.start_time = time.time()
+
+    def metrics(self):
+        
+        # 记录当前帧处理时间
+        frame_time = time.time() - self.start_time
+        self.frame_times.append(frame_time)
+        
+        # 每处理100帧更新一次进度和预计时间
+        if self.frame_count % 100 == 0:
+            metrics_time = time.time()
+            processed_frames = self.frame_count - self.begin_frame
+            elapsed_time = metrics_time - self.prior_metrics_time
+            avg_frame_time = sum(self.frame_times) / len(self.frame_times)
+            remaining = self.remaining_frames - processed_frames
+            est_remaining = remaining * avg_frame_time
+            
+            est_finish_time = datetime.now() + timedelta(seconds=est_remaining)
+            
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - 已处理: {processed_frames}/{self.remaining_frames} 帧 "
+                  f"耗时: {elapsed_time:.1f}s "
+                  f"预计剩余: {est_remaining:.1f}s "
+                  f"预计完成时间: {est_finish_time.strftime('%H:%M:%S')}", flush=True)
+            
+            self.prior_metrics_time = metrics_time
+        
+        self.frame_count += 1
+
+class offLineVideoSolver():
+    def __init__(self,use_cuda=False):
+        self.name = "offLineVideoSolver"
+        self.image_queue = queue.Queue(maxsize=100)
+        if use_cuda==False:
+            logging.disable(logging.WARNING)
+
+        self.checkStatusModel = checkStatusModel(use_cuda=use_cuda)
+        self.anchor_model = AnchorModelWithoutMonitor()
+
+    def process_images(self,statusModel,img):
+        """处理队列中图片的线程函数"""
+        if img is not None:
+            statusModel.doCheck(img,60)
+        
+    def readVideo(self,video_file,begin=0):
+        suc = False
+        #校验视频是否存在
+        if not os.path.exists(video_file):
+            print("视频文件不存在")
+            return suc,None,0
+        cap = cv2.VideoCapture(video_file)
+        
+        if not cap.isOpened():
+            print("无法打开视频文件")
+            return suc,None,0
+         # 获取视频总帧数用于计算进度
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        remaining_frames = total_frames - begin
+        if remaining_frames <= 0:
+            cap.release()
+            return suc,None,0
+        cap.set(cv2.CAP_PROP_POS_FRAMES, begin)
+        suc = True
+
+        return suc,cap,total_frames
+
+    def oneStep(self,img):
+        anchor_image, (lowH, lowW, highH, highW) = self.anchor_model.getAnchor(img)
+        self.process_images(self.checkStatusModel,anchor_image)
+
+
+    def mainSolve(self,video_file):
+        suc,cap,total_frames = self.readVideo(video_file)
+        if suc is False:
+            return
+
+        ctx = context(total_frames)
+        # 启动图片处理线程
+        try:
+            while True:
+
+                ctx.prior()
+                success, img = cap.read()
+                if not success:
+                    break
+
+                self.oneStep(img)
+                
+                ctx.metrics()
+                    
+        except KeyboardInterrupt:
+            print("程序被用户中断")
+        finally:
+            # 等待队列中所有任务处理完成
+            self.image_queue.join()
+            print("所有图片处理完成，程序退出")
+        
+        cap.release()
