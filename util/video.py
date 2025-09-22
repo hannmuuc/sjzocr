@@ -202,17 +202,27 @@ def extract_boxes(detection_data):
 def getOcrResByTxt(res,txts,use_cuda=False):
     if use_cuda:
         objects = res[0]
-        boxes = []
-        txts = []
+        ocr_boxes = []
+        ocr_txts = []
         if objects is None:
-            return txts,boxes
+            return ocr_txts,ocr_boxes
         for obj in objects:
             # 每个目标的第二个元素是文字标签
-            box = obj[0]
-            boxes.append(box)
-            txt = obj[1]
-            txts.append(txt)
-        return txts,boxes
+            ocr_txt = obj[1]
+            flag = True
+            if ocr_txt in txts:
+                flag = False
+            # for t in txts:
+            #     if t in ocr_txt:
+            #         flag = False
+            #         break
+            if flag:
+                continue
+
+            ocr_box = obj[0]
+            ocr_boxes.append(ocr_box)
+            ocr_txts.append(ocr_txt)
+        return ocr_txts,ocr_boxes
     else:
         if len(res.elapse_list) == 0:
                 return [],[]

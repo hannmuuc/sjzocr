@@ -7,7 +7,7 @@ import random
 import logging
 import numpy as np
 from datetime import datetime
-
+import argparse
 
 def displayOcrRes(img,txts,boxes):
     for box,txt in zip(boxes,txts):
@@ -91,7 +91,6 @@ class YysStatusModel:
         # 在矩形范围内生成随机坐标
         x = random.uniform(min_x, max_x)
         y = random.uniform(min_y, max_y)
-        
         return True,(x, y)
 
     def threeStep(self, x, y):
@@ -139,8 +138,9 @@ class YysStatusModel:
             return False
 
     def step(self,img):
-        txts = ["挑战"]
-        _,boxes = self.oneStep(img,txts)
+        txts = ["挑战","点击屏幕继续"]
+        ocr_txts,boxes = self.oneStep(img,txts)
+        self.logger.info("one step find txts: %s", ocr_txts)
         if len(boxes) == 0:
             self.logger.warning("one step error not find! boxes: %s", boxes)
             return False
@@ -194,14 +194,37 @@ def capture_screenshot(save_pic = False,save_path=None):
         return False,None
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Process configuration and directories.")
+    parser.add_argument('--use_cuda', type=bool, default=False,
+                        help='Use CUDA for training.')
+    args = parser.parse_args()
+    return args
+
+def test():
+    txts = ["挑战","点击屏幕继续"]
+    for obj in target:
+            # 每个目标的第二个元素是文字标签
+            txt = obj
+            flag = True
+            for t in txts:
+                if t in txt:
+                    flag = False
+                    break
+            if flag:
+                continue
+            txts.append(txt)
+
 if __name__ == "__main__":
     # 示例：延迟 3 秒后截屏（给切换窗口留时间）
-    yysStatusModel = YysStatusModel()
+    args = parse_arguments()
+    yysStatusModel = YysStatusModel(args.use_cuda)
 
-    ret,img = capture_screenshot()
-    if not ret:
-        print("capture screenshot error")
-        exit(-1)
+    while(True):
+        ret,img = capture_screenshot()
+        if not ret:
+            print("capture screenshot error")
+            exit(-1)
 
-    ret = yysStatusModel(img)
+        ret = yysStatusModel(img)
 
