@@ -93,7 +93,7 @@ class checkStatusModel():
             return self.doCheckWithStatusOne(img)
     
     def doCheckQueue(self):
-        start = time.time()
+        # start = time.time()
         while(len(self.bidirectional_array) > 0):
             img = self.bidirectional_array.popleft()
             tag,succ,res = self.doCheckWithStatus(img)
@@ -102,8 +102,8 @@ class checkStatusModel():
                 continue
             if succ == True and res != None:
                 print(res)
-        end = time.time()
-        print(f"checkQueue cost {(end-start)*1000}ms")
+        # end = time.time()
+        # print(f"checkQueue cost {(end-start)*1000}ms")
     
     def doQueueClearRightBase(self):
         left, right = 0, len(self.bidirectional_array) - 1
@@ -168,7 +168,7 @@ class checkStatusModel():
 
         check_res = self.doCheckIsOk(img)
         self.index += 1
-        print(check_res)
+        # print(check_res)
 
         if self.priorCheck == 0:
             if not check_res:
