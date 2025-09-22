@@ -199,6 +199,18 @@ def extract_boxes(detection_data):
     
     return boxes
 
+def getOcrResByTxt(res,txts):
+    if len(res.elapse_list) == 0:
+            return [],[]
+    all_txts = res.txts
+    all_boxes = res.boxes
+    ocr_txts = []
+    ocr_boxes = []
+    for i in range(len(all_txts)):
+        if all_txts[i] in txts:
+            ocr_txts.append(all_txts[i])
+            ocr_boxes.append(all_boxes[i])
+    return ocr_txts,ocr_boxes
 
 def getOcrTxts(res,use_cuda):
     if use_cuda:
