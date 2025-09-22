@@ -199,18 +199,32 @@ def extract_boxes(detection_data):
     
     return boxes
 
-def getOcrResByTxt(res,txts):
-    if len(res.elapse_list) == 0:
-            return [],[]
-    all_txts = res.txts
-    all_boxes = res.boxes
-    ocr_txts = []
-    ocr_boxes = []
-    for i in range(len(all_txts)):
-        if all_txts[i] in txts:
-            ocr_txts.append(all_txts[i])
-            ocr_boxes.append(all_boxes[i])
-    return ocr_txts,ocr_boxes
+def getOcrResByTxt(res,txts,use_cuda=False):
+    if use_cuda:
+        objects = res[0]
+        boxes = []
+        txts = []
+        if objects is None:
+            return txts,boxes
+        for obj in objects:
+            # 每个目标的第二个元素是文字标签
+            box = obj[0]
+            boxes.append(box)
+            txt = obj[1]
+            txts.append(txt)
+        return txts,boxes
+    else:
+        if len(res.elapse_list) == 0:
+                return [],[]
+        all_txts = res.txts
+        all_boxes = res.boxes
+        ocr_txts = []
+        ocr_boxes = []
+        for i in range(len(all_txts)):
+            if all_txts[i] in txts:
+                ocr_txts.append(all_txts[i])
+                ocr_boxes.append(all_boxes[i])
+        return ocr_txts,ocr_boxes
 
 def getOcrTxts(res,use_cuda):
     if use_cuda:

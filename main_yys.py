@@ -6,6 +6,8 @@ import time
 import random
 import logging
 import numpy as np
+from datetime import datetime
+
 
 def displayOcrRes(img,txts,boxes):
     for box,txt in zip(boxes,txts):
@@ -18,8 +20,12 @@ def displayOcrRes(img,txts,boxes):
     return img
 
 class YysStatusModel:
-    def __init__(self):
-        self.ocrModel = RapidOcr()
+    def __init__(self,use_cuda=False):
+        if use_cuda:
+            self.ocrModel = RapidOcrGPU()
+        else:
+            self.ocrModel = RapidOcr()
+        self.use_cuda = use_cuda
          # 为当前类创建专属日志器（推荐用类名作为日志器名称）
         self.logger = logging.getLogger(self.__class__.__name__)
         # 可根据需要单独设置日志级别（不设置则继承全局配置）
@@ -36,9 +42,9 @@ class YysStatusModel:
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-    def oneStep(self,img):
+    def oneStep(self,img,txts):
         res = self.ocrModel.doOcr(img)
-        txts,boxes = getOcrResByTxt(res,["挑战"])
+        txts,boxes = getOcrResByTxt(res,txts,use_cuda=self.use_cuda)
         return txts,boxes
 
     def twoStep(self, boxes):
@@ -133,7 +139,8 @@ class YysStatusModel:
             return False
 
     def step(self,img):
-        _,boxes = self.oneStep(img)
+        txts = ["挑战"]
+        _,boxes = self.oneStep(img,txts)
         if len(boxes) == 0:
             self.logger.warning("one step error not find! boxes: %s", boxes)
             return False
@@ -145,10 +152,56 @@ class YysStatusModel:
         if not ret:
             self.logger.warning("three step error!")
             return False
+        self.logger.info("click success! pos: %s", pos)
         return  True
 
+    def __call__(self, img):
+        time_start = time.time()
+        _ = self.step(img)
+        time_end = time.time()
+        self.logger.info("step cost time: {:.2f}ms".format((time_end - time_start)*1000))
+
+def capture_screenshot(save_pic = False,save_path=None):
+    """
+    在 macOS 上截取屏幕并保存
+    
+    参数:
+        save_path: 保存路径，默认为当前目录，文件名含时间戳
+    """
+    try:
+        # 生成带时间戳的文件名（避免重复）
+        if not save_path:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            save_path = f"screenshot_{timestamp}.png"
+        
+        # 截取全屏
+        screenshot = pyautogui.screenshot()
+        
+        # 保存图片
+        if save_pic:
+            screenshot.save(save_path)
+            print(f"截屏成功，保存至: {save_path}")
+
+        # 转换为NumPy数组（形状为 (height, width, 3)，RGB）
+        rgb_img = np.array(screenshot)
+        
+        # 转换通道顺序：RGB → BGR（cv2默认使用BGR）
+        cv2_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
+        return True,cv2_img
+    
+    except Exception as e:
+        print(f"截屏失败: {str(e)}")
+        return False,None
+
+
 if __name__ == "__main__":
+    # 示例：延迟 3 秒后截屏（给切换窗口留时间）
     yysStatusModel = YysStatusModel()
-    img = cv2.imread("./pic/1.png")
-    yysStatusModel.step(img)
+
+    ret,img = capture_screenshot()
+    if not ret:
+        print("capture screenshot error")
+        exit(-1)
+
+    ret = yysStatusModel(img)
 
